@@ -1,0 +1,167 @@
+import pygame
+import random
+import sys
+import time
+pygame.init()
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+YELLOW = (255, 255, 0)
+
+SCORE_RED = 10
+SCORE_GREEN = 20
+SCORE_BLUE = 30
+SCORE_NEGATIVE = -10
+
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+
+
+
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.images = {
+            "idle": pygame.image.load("standing.png").convert_alpha(),
+            "left1": pygame.image.load("side1.png").convert_alpha(),
+            "left2": pygame.image.load("side2.png").convert_alpha(),
+            "right1": pygame.image.load("right1.png").convert_alpha(),
+            "right2": pygame.image.load("right2.png").convert_alpha(),
+            "up1": pygame.image.load("up1.png").convert_alpha(),
+            "up2": pygame.image.load("up2.png").convert_alpha(),
+            "down1": pygame.image.load("down1.png").convert_alpha(),
+            "down2": pygame.image.load("down2.png").convert_alpha(),
+        }
+        self.image = self.images["idle"]
+        self.rect = self.image.get_rect()
+        self.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+        self.color = WHITE
+        self.score = 0
+        self.frame = 0
+
+    def update(self):
+        keys = pygame.key.get_pressed()
+        dx, dy = 0, 0
+        if keys[pygame.K_a]:
+            
+            dx = -5
+            self.animate("left")
+        elif keys[pygame.K_d]:
+            dx = 5
+            self.animate("right")
+        elif keys[pygame.K_w]:
+            dy = -5
+            self.animate("up")
+        elif keys[pygame.K_s]:
+            dy = 5
+            self.animate("down")
+        else:
+            self.frame = 0
+            self.image = self.images["idle"]
+
+        self.rect.x += dx
+        self.rect.y += dy
+
+    def animate(self, direction):
+        if self.frame == 0:
+            self.image = self.images[direction + "1"]
+            self.frame = 1
+        else:
+            self.image = self.images[direction + "2"]
+            self.frame = 0
+
+class Dot(pygame.sprite.Sprite):
+    def __init__(self, x, y, color):
+        super().__init__()
+        self.image = pygame.Surface((10, 10))
+        self.image.fill(color)
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.color = color
+
+    def get_score(self):
+        if self.color == RED:
+            return SCORE_RED
+        elif self.color == GREEN:
+            return SCORE_GREEN
+        elif self.color == BLUE:
+            return SCORE_BLUE
+        elif self.color == YELLOW:
+            return SCORE_NEGATIVE
+
+    def update(self):
+        self.rect.y += 3
+
+
+
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Color Chaser")
+
+player = Player()
+
+dots = pygame.sprite.Group()
+
+ADD_DOT = pygame.USEREVENT + 1
+pygame.time.set_timer(ADD_DOT, 2000)
+
+font = pygame.font.SysFont(None, 36)
+
+game_start_time = time.time()
+game_duration = 30
+
+crash_sound=pygame.mixer.Sound("crash.wav")
+crash_sound.play(-1)
+hit_sound = pygame.mixer.Sound("hit.wav")
+
+
+running = True
+while running:
+    
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == ADD_DOT:
+            for _ in range(7):
+                x = random.randrange(SCREEN_WIDTH)
+                y = 0
+                color = random.choice([RED, GREEN, BLUE, YELLOW])
+                dot = Dot(x, y, color)
+                dots.add(dot)
+
+    hits = pygame.sprite.spritecollide(player, dots, True)
+    for hit in hits:
+        player.score += hit.get_score()
+        if hit.color == YELLOW:  # 可以根据需要调整播放声音的条件
+            
+            hit_sound.play()
+
+    player.update()
+    dots.update()
+
+    screen.fill(WHITE)
+    dots.draw(screen)
+    screen.blit(player.image, player.rect)
+
+    score_text = font.render("Score: " + str(player.score), True, BLACK)
+    screen.blit(score_text, (10, 10))
+
+    current_time = time.time()
+    elapsed_time = int(current_time - game_start_time)
+    remaining_time = max(game_duration - elapsed_time, 0)
+    time_text = font.render("Time: " + str(remaining_time), True, BLACK)
+    screen.blit(time_text, (350, 10))
+
+  
+    pygame.display.flip()
+
+    pygame.time.Clock().tick(60)
+
+    if elapsed_time >= game_duration:
+        break
+
+print("Final Score:", player.score)
+
+pygame.quit()
+sys.exit()
